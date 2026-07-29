@@ -82,20 +82,20 @@ def build_arg_parser():
     # synthetic data
     p.add_argument("--n_samples", type=int, default=2000)
     p.add_argument("--n_features", type=int, default=200)
-    p.add_argument("--topp", type=float, default=0.0,
+    p.add_argument("--topp", type=float, default=0.8,
                    help="quantile threshold on |correlation| (matches the original script's semantics: "
                         "e.g. 0.8 keeps only the top ~20%% most strongly label-correlated features)")
     # model
-    p.add_argument("--dim", type=int, default=64)
-    p.add_argument("--depth", type=int, default=3)
+    p.add_argument("--dim", type=int, default=128)
+    p.add_argument("--depth", type=int, default=6)
     p.add_argument("--heads", type=int, default=4)
-    p.add_argument("--attn_dropout", type=float, default=0.1)
-    p.add_argument("--ff_dropout", type=float, default=0.1)
+    p.add_argument("--attn_dropout", type=float, default=0.2)
+    p.add_argument("--ff_dropout", type=float, default=0.2)
     # optimization
-    p.add_argument("--epochs", type=int, default=5)
-    p.add_argument("--batch_size", type=int, default=64)
-    p.add_argument("--lr", type=float, default=8e-4)
-    p.add_argument("--warmup_epochs", type=int, default=1)
+    p.add_argument("--epochs", type=int, default=20)
+    p.add_argument("--batch_size", type=int, default=256)
+    p.add_argument("--lr", type=float, default=5e-4)
+    p.add_argument("--warmup_epochs", type=int, default=10)
     p.add_argument("--seed", type=int, default=42)
     return p
 
@@ -228,7 +228,7 @@ def main():
         first_cycle_steps=args.epochs * n_iter_per_epoch,
         cycle_mult=1.0,
         max_lr=args.lr,
-        min_lr=1e-6,
+        min_lr=1e-10,
         warmup_steps=args.warmup_epochs * n_iter_per_epoch,
         gamma=1.0,
     )

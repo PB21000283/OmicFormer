@@ -151,6 +151,13 @@ Train OmicFormer end-to-end on the synthetic dataset:
 python train.py --epochs 5 --n_samples 2000 --n_features 200
 ```
 
+> **Tip for quick demo runs:** the defaults below match the original OmicFormer
+> configuration (dim=128, depth=6, epochs=20, batch_size=256). For a lighter
+> and faster test, use:
+> ```bash
+> python train.py --dim 64 --depth 3 --epochs 5 --batch_size 64 --warmup_epochs 1
+> ```
+
 Key options:
 
 ```
@@ -160,12 +167,15 @@ Key options:
                 (default: 0.8, i.e. keep only the top ~20% most strongly
                 label-correlated features — matches the original script's
                 semantics, see the architecture note above)
---dim           Transformer hidden dimension (default: 64)
---depth         number of Transformer blocks (default: 3)
+--dim           Transformer hidden dimension (default: 128)
+--depth         number of Transformer blocks (default: 6)
 --heads         number of attention heads (default: 4)
---epochs        number of training epochs (default: 5)
---batch_size    training batch size (default: 64)
+--attn_dropout  attention dropout rate (default: 0.2)
+--ff_dropout    feed-forward dropout rate (default: 0.2)
+--epochs        number of training epochs (default: 20)
+--batch_size    training batch size (default: 256)
 --lr            peak learning rate (default: 8e-4)
+--warmup_epochs number of LR warmup epochs (default: 10)
 ```
 
 Expected output (numbers will vary with the random seed):
