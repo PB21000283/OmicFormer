@@ -4,15 +4,16 @@ OmicFormer core architecture.
 This file re-implements the exact computation graph of the original
 OmicFormer model (see Fig. c in the paper / README), with two changes only:
 
-  1. Naming: the two input channels are now named according to the paper's
-     terminology (see channel_generator.py / Fig. b):
-       - ``x_label_sorted``: features ordered by feature-label (feature-task)
-         correlation ranking. This was previously called ``x_cont``.
-       - ``x_self_corr``: features re-ordered by the Gromov-Wasserstein
-         optimal-transport module so that highly self-correlated features
-         sit close together along the 1D sequence. This was previously
-         called ``tabmap_img`` (a legacy name from an earlier prototype).
-  2. Comments translated to English.
+Naming: the two input channels are now named according to the paper's
+terminology (see channel_generator.py / Fig. b):
+  ``x_label_sorted``: features ordered by feature-label (feature-task)
+  correlation ranking. This was previously called ``x_cont``.
+  ``x_self_corr``: features re-ordered by the Gromov-Wasserstein
+  optimal-transport module so that highly self-correlated features
+  sit close together along the 1D sequence. This was previously
+  called ``tabmap_img`` (a legacy name from an earlier prototype).
+
+Comments translated to English.
 
 No layer, no tensor shape, and no forward-pass computation has been changed.
 """
@@ -28,9 +29,6 @@ from torch import einsum
 from torch.nn import Module, ModuleList
 
 
-# ---------------------------------------------------------------------------
-# helpers
-# ---------------------------------------------------------------------------
 def exists(val):
     return val is not None
 
@@ -39,9 +37,6 @@ def default(val, d):
     return val if exists(val) else d
 
 
-# ---------------------------------------------------------------------------
-# PreNorm / Attention / FeedForward / Transformer / MLP
-# ---------------------------------------------------------------------------
 class PreNorm(Module):
     """Pre-LayerNorm wrapper applied before a sub-module (attention or FFN)."""
 
@@ -165,9 +160,6 @@ class MLP(Module):
         return self.mlp(x)
 
 
-# ---------------------------------------------------------------------------
-# Multi-scale 1D patch embedding (Fig. c, left panel)
-# ---------------------------------------------------------------------------
 class PatchEmbed(Module):
     """
     Multi-scale 1D patch embedding.
@@ -211,9 +203,6 @@ class PatchEmbed(Module):
         return x
 
 
-# ---------------------------------------------------------------------------
-# sinusoidal position embedding
-# ---------------------------------------------------------------------------
 def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     assert embed_dim % 2 == 0
     omega = np.arange(embed_dim // 2, dtype=np.float64)
@@ -225,9 +214,6 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
-# ---------------------------------------------------------------------------
-# OmicFormer
-# ---------------------------------------------------------------------------
 class OmicFormer(Module):
     """
     OmicFormer: a statistical-priors-informed Transformer for omics
@@ -237,12 +223,13 @@ class OmicFormer(Module):
     produced by the Dual Statistical Prior module (see
     ``channel_generator.py`` / Fig. b):
 
-      - ``x_label_sorted`` [B, 1, F]: raw (z-scored) feature values, ordered
-        by feature-label correlation ranking.
-      - ``x_self_corr``    [B, 1, F]: the same feature values re-ordered by
-        the Gromov-Wasserstein optimal-transport module, so that features
-        with high feature-feature correlation are placed close together
-        along the sequence.
+      ``x_label_sorted`` [B, 1, F]: raw (z-scored) feature values, ordered
+      by feature-label correlation ranking.
+
+      ``x_self_corr``    [B, 1, F]: the same feature values re-ordered by
+      the Gromov-Wasserstein optimal-transport module, so that features
+      with high feature-feature correlation are placed close together
+      along the sequence.
 
     The two channels are combined with a learnable softmax gate
     (``self.channel_gate``) before being fed into the multi-scale 1D patch

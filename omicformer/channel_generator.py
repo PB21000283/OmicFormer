@@ -6,20 +6,19 @@ This is a renamed, English-commented, faithful port of the original
 ``TabMapGenerator`` (+ its ``gromov_wass_solver`` helper). The numerical
 algorithm is unchanged from the original implementation:
 
-  1. Compute the pairwise feature-feature distance matrix (default metric:
-     correlation distance) over the input feature columns.
-  2. Compute the pairwise distance matrix of an evenly-spaced 1D grid with
-     as many points as there are features.
-  3. Solve a (linearized) Gromov-Wasserstein optimal-transport problem
-     between these two structure matrices to get a soft coupling between
-     "features" and "1D grid slots".
-  4. Convert the soft coupling into a hard one-to-one feature -> position
-     assignment via the Hungarian algorithm (``scipy.optimize.
-     linear_sum_assignment``), yielding a permutation matrix.
-  5. ``transform`` simply right-multiplies the (already feature-selected)
-     input matrix by this fixed permutation matrix, i.e. it re-orders
-     columns so that features with similar feature-feature distance
-     profiles end up next to each other along the 1D sequence.
+It computes the pairwise feature-feature distance matrix (default metric:
+correlation distance) over the input feature columns. Then it computes
+the pairwise distance matrix of an evenly-spaced 1D grid with as many
+points as there are features. After that it solves a (linearized)
+Gromov-Wasserstein optimal-transport problem between these two structure
+matrices to get a soft coupling between "features" and "1D grid slots".
+Next it converts the soft coupling into a hard one-to-one feature ->
+position assignment via the Hungarian algorithm
+(``scipy.optimize.linear_sum_assignment``), yielding a permutation matrix.
+Finally ``transform`` simply right-multiplies the (already
+feature-selected) input matrix by this fixed permutation matrix, i.e. it
+re-orders columns so that features with similar feature-feature distance
+profiles end up next to each other along the 1D sequence.
 
 Note: this module does **not** use the label/task at all — it is purely
 feature-feature-structure-driven. The complementary "feature-label sorted"
@@ -28,11 +27,10 @@ training script, from a feature-task correlation ranking (see
 ``omicformer/utils.py:BWAS_correlation`` and ``train.py``).
 
 Renaming vs. the original implementation
------------------------------------------
-- ``TabMapGenerator``   -> ``SelfCorrelationReorder``
-- ``gromov_wass_solver`` -> ``GromovWassersteinSolver``
-- ``create_space_distributions`` -> ``_uniform_marginals``
-- ``tensor_product``    -> ``_gw_tensor_product``
+
+``TabMapGenerator`` is now ``SelfCorrelationReorder``. ``gromov_wass_solver``
+is now ``GromovWassersteinSolver``. ``create_space_distributions`` is now
+``_uniform_marginals``. ``tensor_product`` is now ``_gw_tensor_product``.
 No computation was changed; only names, docstrings, and code style.
 """
 
@@ -145,7 +143,7 @@ class SelfCorrelationReorder:
     in Fig. b.
 
     Parameters
-    ----------
+
     metric : str
         Distance metric passed to ``sklearn.metrics.pairwise.
         pairwise_distances`` to build the feature-feature structure

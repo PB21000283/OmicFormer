@@ -6,12 +6,14 @@ without any real (and potentially identifiable) cohort data.
 File layout produced by `write_example_files()` (mirrors the data
 conventions used throughout this project's UK Biobank pipelines):
 
-  - omics_features.csv : eid + F feature columns (proteomics / metabolomics
-    / imaging-derived-phenotype-like values).
-  - cov_data.csv        : eid, 31-0.0 (sex), 21003-0.0 (age),
-    22009-0.1 .. 22009-0.{n_pcs} (genetic principal components) — the same
-    UK Biobank field-ID convention used elsewhere in this project.
-  - data_split.csv       : eid, <label_name>, split (train/val/test).
+`omics_features.csv`: eid + F feature columns (proteomics / metabolomics /
+imaging-derived-phenotype-like values).
+
+`cov_data.csv`: eid, 31-0.0 (sex), 21003-0.0 (age), 22009-0.1 ..
+22009-0.{n_pcs} (genetic principal components) — the same UK Biobank
+field-ID convention used elsewhere in this project.
+
+`data_split.csv`: eid, <label_name>, split (train/val/test).
 
 All values below are randomly generated and carry no biological meaning;
 this is for pipeline testing / illustration only.
@@ -34,7 +36,7 @@ def make_synthetic_omics(
 ):
     """
     Returns
-    -------
+
     x : np.ndarray [n_samples, n_features]      synthetic omics features
     y : np.ndarray [n_samples, 1]                binary label (0/1)
     cov : np.ndarray [n_samples, n_covariates]   synthetic covariates (age, sex, ...)
@@ -48,15 +50,15 @@ def make_synthetic_omics(
     """
     rng = np.random.RandomState(random_state)
 
-    # ---- block-correlated feature covariance (simulates co-regulated
-    # biological modules, e.g. correlated proteins in the same pathway) ----
+    # block-correlated feature covariance (simulates co-regulated
+    # biological modules, e.g. correlated proteins in the same pathway)
     module_id = rng.randint(0, n_modules, size=n_features)
     latent = rng.normal(size=(n_samples, n_modules))
     noise = rng.normal(size=(n_samples, n_features))
     x = 0.7 * latent[:, module_id] + 0.7 * noise
     x = x.astype(np.float32)
 
-    # ---- binary label from a sparse informative subset ----
+    # binary label from a sparse informative subset
     informative_idx = rng.choice(n_features, size=n_informative, replace=False)
     weights = rng.normal(size=n_informative)
     logits = x[:, informative_idx] @ weights
@@ -65,7 +67,7 @@ def make_synthetic_omics(
     threshold = np.quantile(logits, 1 - pos_rate)
     y = (logits > threshold).astype(np.int64).reshape(-1, 1)
 
-    # ---- a few synthetic covariates (age-like, sex-like, ...) ----
+    # a few synthetic covariates (age-like, sex-like, ...)
     cov = rng.normal(size=(n_samples, n_covariates)).astype(np.float32)
 
     return x, y, cov
@@ -81,11 +83,10 @@ def make_synthetic_eids(n_samples: int, random_state: int = 42) -> np.ndarray:
 def make_synthetic_covariate_table(eids: np.ndarray, n_pcs: int = 10, random_state: int = 42) -> pd.DataFrame:
     """
     Synthetic covariate table using the UK Biobank field-ID convention
-    used throughout this project:
+    used throughout this project.
 
-      - 31-0.0            : sex (0/1)
-      - 21003-0.0          : age at baseline
-      - 22009-0.1 .. 0.N   : genetic principal components
+    31-0.0: sex (0/1). 21003-0.0: age at baseline. 22009-0.1 .. 0.N:
+    genetic principal components.
 
     (the values here are randomly generated for illustration only.)
     """

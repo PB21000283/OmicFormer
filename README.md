@@ -18,22 +18,23 @@ figure:
 The model consumes two complementary 1D re-orderings of the same feature
 set, computed in two separate steps (matching the two paths in Fig. b):
 
-- **Label-sorted channel** (`train.py`): features ranked by descending
-  *signed* feature-label correlation, restricted to features whose
-  |correlation| exceeds a quantile threshold (see
-  `omicformer/utils.py:BWAS_correlation`). This does not involve optimal
-  transport — it is a plain correlation ranking, computed directly in the
-  training script, and it indexes directly into the full (unselected)
-  feature matrix, so it simultaneously performs feature selection *and*
-  ordering.
-- **Self-correlation-ordered channel** (`omicformer/channel_generator.py:
-  SelfCorrelationReorder`): fit on the same selected feature subset (taken
-  in ascending original-index order — the specific input column order
-  does not affect the correctness of the result, since the
-  Gromov-Wasserstein solve derives its own ordering purely from the
-  feature-feature distance structure; it only changes which original
-  feature happens to land on which final 1D slot). This step does **not**
-  use the label at all.
+**Label-sorted channel** (`train.py`): features ranked by descending
+*signed* feature-label correlation, restricted to features whose
+|correlation| exceeds a quantile threshold (see
+`omicformer/utils.py:BWAS_correlation`). This does not involve optimal
+transport — it is a plain correlation ranking, computed directly in the
+training script, and it indexes directly into the full (unselected)
+feature matrix, so it simultaneously performs feature selection *and*
+ordering.
+
+**Self-correlation-ordered channel** (`omicformer/channel_generator.py:
+SelfCorrelationReorder`): fit on the same selected feature subset (taken
+in ascending original-index order — the specific input column order
+does not affect the correctness of the result, since the
+Gromov-Wasserstein solve derives its own ordering purely from the
+feature-feature distance structure; it only changes which original
+feature happens to land on which final 1D slot). This step does **not**
+use the label at all.
 
 These two channels impose biologically meaningful structure on an
 otherwise unordered tabular feature vector, letting a subsequent
@@ -53,15 +54,18 @@ convolutional/attention model exploit local neighborhoods.
 
 **2. OmicFormer encoder** (`omicformer/model.py`)
 
-- The two channels are fused with a **learnable softmax gate**.
-- A **multi-scale 1D patch embedding** (parallel `Conv1d` branches with
-  different kernel sizes, resampled to a common length and concatenated)
-  converts the fused 1D signal into a token sequence.
-- A **[CLS] token** + sinusoidal positional embedding are added, and the
-  sequence is passed through a standard **pre-norm Transformer encoder**
-  (multi-head self-attention + GEGLU feed-forward blocks).
-- The pooled `[CLS]` token is fed to an **MLP head** for classification or
-  regression.
+The two channels are fused with a **learnable softmax gate**.
+
+A **multi-scale 1D patch embedding** (parallel `Conv1d` branches with
+different kernel sizes, resampled to a common length and concatenated)
+converts the fused 1D signal into a token sequence.
+
+A **[CLS] token** + sinusoidal positional embedding are added, and the
+sequence is passed through a standard **pre-norm Transformer encoder**
+(multi-head self-attention + GEGLU feed-forward blocks).
+
+The pooled `[CLS]` token is fed to an **MLP head** for classification or
+regression.
 
 ## Repository structure
 
@@ -75,8 +79,6 @@ synthetic_data.py           generates synthetic omics features + example covaria
 train.py                    end-to-end training/evaluation demo script
 requirements.txt
 ```
-
----
 
 ## Getting Started
 
@@ -110,32 +112,33 @@ python synthetic_data.py
 
 This writes three files to `./example_data/`:
 
-- `omics_features.csv` — `eid` + `F` feature columns (proteomics /
-  metabolomics / imaging-derived-phenotype-like values).
-- `cov_data.csv` — covariates, using the same UK Biobank field-ID
-  convention used elsewhere in this project (`31-0.0` = sex, `21003-0.0` =
-  age, `22009-0.1`..`22009-0.10` = genetic principal components). Example
-  format (the values were randomly generated for illustrative purposes
-  only):
+`omics_features.csv` — `eid` + `F` feature columns (proteomics /
+metabolomics / imaging-derived-phenotype-like values).
 
-  ```
-  eid,31-0.0,21003-0.0,22009-0.1,22009-0.2,...,22009-0.10
-  1002845,0,54,-1.511248,5.594128,...,-10.096333
-  1005535,1,51,1.117556,-3.718308,...,-0.748960
-  1005830,0,69,0.361888,2.013611,...,6.725912
-  ```
+`cov_data.csv` — covariates, using the same UK Biobank field-ID
+convention used elsewhere in this project (`31-0.0` = sex, `21003-0.0` =
+age, `22009-0.1`..`22009-0.10` = genetic principal components). Example
+format (the values were randomly generated for illustrative purposes
+only):
 
-- `data_split.csv` — `eid`, label column, and a `train`/`val`/`test`
-  assignment. Example format (values randomly generated):
+```
+eid,31-0.0,21003-0.0,22009-0.1,22009-0.2,...,22009-0.10
+1002845,0,54,-1.511248,5.594128,...,-10.096333
+1005535,1,51,1.117556,-3.718308,...,-0.748960
+1005830,0,69,0.361888,2.013611,...,6.725912
+```
 
-  ```
-  eid,Y1,split
-  1002845,0,train
-  1005535,0,test
-  1005830,0,train
-  1017952,0,train
-  1026272,1,val
-  ```
+`data_split.csv` — `eid`, label column, and a `train`/`val`/`test`
+assignment. Example format (values randomly generated):
+
+```
+eid,Y1,split
+1002845,0,train
+1005535,0,test
+1005830,0,train
+1017952,0,train
+1026272,1,val
+```
 
 If you want to plug in real data, produce these same three files (or the
 equivalent in-memory numpy/pandas objects — see `make_synthetic_omics()`,
@@ -199,13 +202,15 @@ with your own data-loading code (e.g. reading the `omics_features.csv` /
 `cov_data.csv` / `data_split.csv` files described above). You only need to
 produce three numpy arrays with the following shapes:
 
-- `x`: `[N, F]` — omics feature matrix.
-- `y`: `[N, 1]` — integer class labels (or adapt the loss/metrics for a
-  regression target).
-- `cov`: `[N, C]` — optional covariates (age, sex, genetic PCs, ...),
-  currently loaded by the dataset class but not consumed by the default
-  forward pass; wire them into `OmicFormer.forward` if you want covariate
-  conditioning.
+`x`: `[N, F]` — omics feature matrix.
+
+`y`: `[N, 1]` — integer class labels (or adapt the loss/metrics for a
+regression target).
+
+`cov`: `[N, C]` — optional covariates (age, sex, genetic PCs, ...),
+currently loaded by the dataset class but not consumed by the default
+forward pass; wire them into `OmicFormer.forward` if you want covariate
+conditioning.
 
 Everything downstream (feature screening, the two statistical-prior
 channels, model construction, training loop) works unchanged as long as
@@ -216,10 +221,11 @@ these three array shapes match.
 `train.py` reports two complementary metrics on the held-out validation
 and test splits after training:
 
-- **AUC** — area under the ROC curve.
-- **Balanced accuracy** — average of sensitivity and specificity at a 0.5
-  decision threshold, robust to class imbalance (the synthetic label is
-  generated at a configurable, imbalanced positive rate by default).
+**AUC** — area under the ROC curve.
+
+**Balanced accuracy** — average of sensitivity and specificity at a 0.5
+decision threshold, robust to class imbalance (the synthetic label is
+generated at a configurable, imbalanced positive rate by default).
 
 For a real deployment, consider also reporting the odds ratio between the
 top percentile of the predicted-risk distribution and the remainder of

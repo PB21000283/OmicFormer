@@ -7,25 +7,24 @@ full pipeline runs correctly, without needing access to any real cohort
 data (e.g. UK Biobank) or any server-specific file paths.
 
 Pipeline
---------
-1. Generate synthetic omics features + a binary label + covariates.
-2. Train/val/test split.
-3. Select the top-`topp` fraction of features by their correlation with
-   the label (a lightweight feature-selection step, mirroring the
-   univariate screening used before the Dual Statistical Prior module in
-   the original large-scale (>50k feature) proteomics/metabolomics
-   pipelines).
-4. Fit the Dual Statistical Prior module (`DualStatisticalPriorGenerator`)
-   on the training set to obtain the two 1D feature orderings used by
-   OmicFormer (Fig. b): label-sorted and self-correlation-ordered.
-5. Train OmicFormer with a cosine-annealing-with-warmup schedule, caching
-   the model weights whenever validation AUC improves.
-6. Roll back to the best-validation-AUC checkpoint, then evaluate it on
-   the held-out test set exactly once (the test set is never touched
-   during training or model selection).
+
+First it generates synthetic omics features plus a binary label and
+covariates, then performs a train/val/test split. Next it selects the
+top-`topp` fraction of features by their correlation with the label (a
+lightweight feature-selection step, mirroring the univariate screening
+used before the Dual Statistical Prior module in the original large-scale
+(>50k feature) proteomics/metabolomics pipelines). Then it fits the Dual
+Statistical Prior module (`DualStatisticalPriorGenerator`) on the
+training set to obtain the two 1D feature orderings used by OmicFormer
+(Fig. b): label-sorted and self-correlation-ordered. After that it trains
+OmicFormer with a cosine-annealing-with-warmup schedule, caching the
+model weights whenever validation AUC improves. Finally it rolls back to
+the best-validation-AUC checkpoint, then evaluates it on the held-out
+test set exactly once (the test set is never touched during training or
+model selection).
 
 Usage
------
+
     python train.py --epochs 5 --n_samples 2000 --n_features 200
 
 For real applications, replace `synthetic_data.make_synthetic_omics()`
@@ -49,9 +48,6 @@ from omicformer.utils import BWAS_correlation, g_impute_nan_as_mean, nets_zscore
 from synthetic_data import make_synthetic_omics
 
 
-# ---------------------------------------------------------------------------
-# Dataset
-# ---------------------------------------------------------------------------
 class OmicsDataset(Dataset):
     """Wraps the pre-computed [label-sorted, self-corr] two-channel feature
     array together with labels and (optional) covariates."""
@@ -74,9 +70,6 @@ class OmicsDataset(Dataset):
         return x_label_sorted, x_self_corr, y, cov
 
 
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 def build_arg_parser():
     p = argparse.ArgumentParser(description=__doc__)
     # synthetic data
@@ -100,7 +93,6 @@ def build_arg_parser():
     return p
 
 
-# ---------------------------------------------------------------------------
 def main():
     args = build_arg_parser().parse_args()
 
@@ -110,9 +102,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # ------------------------------------------------------------------
-    # 1. synthetic data + split
-    # ------------------------------------------------------------------
+    # Synthetic data + split
     x, y, cov = make_synthetic_omics(n_samples=args.n_samples, n_features=args.n_features, random_state=args.seed)
     x = g_impute_nan_as_mean(x)
 
@@ -128,27 +118,23 @@ def main():
           f"val N={len(y_val)} (pos={int(y_val.sum())}), "
           f"test N={len(y_test)} (pos={int(y_test.sum())})")
 
-    # ------------------------------------------------------------------
-    # 2. standardize using train-set statistics only
-    # ------------------------------------------------------------------
+    # Standardize using train-set statistics only
     x_mean, x_std = x_train.mean(axis=0), x_train.std(axis=0)
     x_std[x_std == 0] = 1.0
     x_train = (x_train - x_mean) / x_std
     x_val = (x_val - x_mean) / x_std
     x_test = (x_test - x_mean) / x_std
 
-    # ------------------------------------------------------------------
-    # 3. feature screening + label-sorted channel — mirrors the real
-    #    training script's `shift_indx` construction exactly:
-    #      shift_indx = argsort(r) -> filter by |r| > quantile(|r|, topp)
-    #                 -> re-sort by descending SIGNED r
-    #    `shift_indx` indexes directly into the FULL (unselected) feature
-    #    matrix, so it doubles as both the feature-selection mask and the
-    #    "feature-label sorted" ordering for channel 1.
-    #    Note: `topp` is the quantile itself (matching the original code),
-    #    e.g. topp=0.8 keeps only the top ~20% most strongly correlated
-    #    features, NOT "keep 80% of features".
-    # ------------------------------------------------------------------
+    # Feature screening + label-sorted channel
+    # mirrors the real training script's `shift_indx` construction exactly:
+    #   shift_indx = argsort(r) -> filter by |r| > quantile(|r|, topp)
+    #              -> re-sort by descending SIGNED r
+    # `shift_indx` indexes directly into the FULL (unselected) feature
+    # matrix, so it doubles as both the feature-selection mask and the
+    # "feature-label sorted" ordering for channel 1.
+    # Note: `topp` is the quantile itself (matching the original code),
+    # e.g. topp=0.8 keeps only the top ~20% most strongly correlated
+    # features, NOT "keep 80% of features".
     r = BWAS_correlation(x_train, y_train.astype(np.float64)).flatten()
     shift_indx = np.argsort(r)  # ascending by signed correlation
     r_sorted = np.sort(r)
@@ -164,17 +150,15 @@ def main():
     x_val_label_sorted = x_val[:, label_sorted_idx]
     x_test_label_sorted = x_test[:, label_sorted_idx]
 
-    # ------------------------------------------------------------------
-    # 4. self-correlation-ordered channel (Fig. b, right path): fit the
-    #    Gromov-Wasserstein reordering on the same selected feature
-    #    subset, but in ascending-original-index order — this mirrors
-    #    `selected_idx = sorted(list(set(shift_indx)))` in the real
-    #    script. The exact input column order does not change the
-    #    correctness of the GW reordering itself (it only relabels which
-    #    original feature maps to which final 1D slot), so this is safe.
-    #    This module does not use the label at all, only feature-feature
-    #    structure.
-    # ------------------------------------------------------------------
+    # Self-correlation-ordered channel (Fig. b, right path)
+    # Fit the Gromov-Wasserstein reordering on the same selected feature
+    # subset, but in ascending-original-index order
+    # this mirrors `selected_idx = sorted(list(set(shift_indx)))` in the
+    # real script. The exact input column order does not change the
+    # correctness of the GW reordering itself (it only relabels which
+    # original feature maps to which final 1D slot), so this is safe.
+    # This module does not use the label at all, only feature-feature
+    # structure.
     selected_idx_original_order = np.sort(np.unique(label_sorted_idx))
     x_train_selected = x_train[:, selected_idx_original_order]
     x_val_selected = x_val[:, selected_idx_original_order]
@@ -187,9 +171,7 @@ def main():
     x_val_self_corr = reorder.transform(x_val_selected)
     x_test_self_corr = reorder.transform(x_test_selected)
 
-    # ------------------------------------------------------------------
-    # 5. stack the two channels: [N, 2, F]
-    # ------------------------------------------------------------------
+    # Stack the two channels: [N, 2, F]
     x_train_2ch = np.stack([x_train_label_sorted, x_train_self_corr], axis=1).astype(np.float32)
     x_val_2ch = np.stack([x_val_label_sorted, x_val_self_corr], axis=1).astype(np.float32)
     x_test_2ch = np.stack([x_test_label_sorted, x_test_self_corr], axis=1).astype(np.float32)
@@ -202,9 +184,7 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=256, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=256, shuffle=False)
 
-    # ------------------------------------------------------------------
-    # 6. model
-    # ------------------------------------------------------------------
+    # Model
     model = OmicFormer(
         num_continuous=len(label_sorted_idx),
         dim_out=2,
@@ -237,9 +217,7 @@ def main():
     class_weight_1 = len(y_train) / 2 / max(float(np.sum(y_train == 1)), 1.0)
     loss_fn = nn.CrossEntropyLoss(weight=torch.tensor([class_weight_0, class_weight_1]).to(device))
 
-    # ------------------------------------------------------------------
-    # 7. train
-    # ------------------------------------------------------------------
+    # Train
     def evaluate(loader):
         model.eval()
         all_probs, all_labels = [], []
