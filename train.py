@@ -75,7 +75,7 @@ def build_arg_parser():
     # synthetic data
     p.add_argument("--n_samples", type=int, default=2000)
     p.add_argument("--n_features", type=int, default=200)
-    p.add_argument("--topp", type=float, default=0.8,
+    p.add_argument("--topp", type=float, default=0.0,
                    help="quantile threshold on |correlation| (matches the original script's semantics: "
                         "e.g. 0.8 keeps only the top ~20%% most strongly label-correlated features)")
     # model

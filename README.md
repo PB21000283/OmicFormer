@@ -10,15 +10,14 @@ without any access to real (protected) cohort data.
 
 ## Architecture
 
-OmicFormer takes two 1D re-orderings of the same feature set as input:
-
-- **Label-sorted channel**: features ranked by correlation with the label
-  (computed in `train.py`, also serves as feature selection).
-- **Self-correlation-ordered channel** (`omicformer/channel_generator.py:
-  SelfCorrelationReorder`): features re-ordered via a Gromov-Wasserstein
-  optimal-transport solve so that mutually correlated features sit close
-  together. This is a renamed, unmodified port of the original
-  `TabMapGenerator` — no numerical logic was changed.
+OmicFormer takes two 1D re-orderings of the same feature set as input.
+The label-sorted channel ranks features by correlation with the label
+(computed in `train.py`, and it also serves as feature selection). The
+self-correlation-ordered channel (`omicformer/channel_generator.py:
+SelfCorrelationReorder`) re-orders features via a Gromov-Wasserstein
+optimal-transport solve so that mutually correlated features sit close
+together; this is a renamed, unmodified port of the original
+`TabMapGenerator`, with no numerical logic changed.
 
 The two channels are fused with a learnable gate, embedded with a
 multi-scale 1D `Conv1d` patch embedding, and passed through a standard
@@ -56,21 +55,18 @@ layout a real data-preparation pipeline would produce:
 python synthetic_data.py
 ```
 
-This writes three files to `./example_data/`:
+This writes three files to `./example_data/`. `omics_features.csv`
+contains `eid` plus the feature columns. `cov_data.csv` contains
+covariates using UK Biobank field IDs, where `31-0.0` is sex, `21003-0.0`
+is age, and `22009-0.1` through `22009-0.10` are genetic principal
+components. `data_split.csv` contains `eid`, the label column, and a
+`train`/`val`/`test` split assignment. All values in these files are
+randomly generated for format illustration only.
 
-- `omics_features.csv` — `eid` + feature columns.
-- `cov_data.csv` — covariates using UK Biobank field IDs (`31-0.0` = sex,
-  `21003-0.0` = age, `22009-0.1`..`22009-0.10` = genetic PCs).
-- `data_split.csv` — `eid`, label column, `train`/`val`/`test` split.
-
-All values are randomly generated for format illustration only.
-
-To use your own data, produce three numpy arrays with these shapes and
-point `train.py` at them instead of the synthetic generators:
-
-- `x`: `[N, F]` — omics feature matrix
-- `y`: `[N, 1]` — integer class labels
-- `cov`: `[N, C]` — optional covariates
+To use your own data, produce three numpy arrays and point `train.py` at
+them instead of the synthetic generators: `x` with shape `[N, F]` as the
+omics feature matrix, `y` with shape `[N, 1]` as integer class labels, and
+`cov` with shape `[N, C]` as optional covariates.
 
 ## Model Training
 
@@ -85,8 +81,8 @@ Key options:
 ```
 --n_samples     number of synthetic samples (default: 2000)
 --n_features    number of synthetic features (default: 200)
---topp          quantile threshold on |correlation| for feature screening
-                (default: 0.8, keeps only the top ~20% most strongly
+--topp          quantile threshold on |correlation| for feature screening(default: 0.0)
+                (example: 0.8, keeps only the top ~20% most strongly
                 label-correlated features)
 --dim           Transformer hidden dimension (default: 128)
 --depth         number of Transformer blocks (default: 6)
@@ -95,7 +91,7 @@ Key options:
 --ff_dropout    feed-forward dropout rate (default: 0.2)
 --epochs        number of training epochs (default: 20)
 --batch_size    training batch size (default: 256)
---lr            peak learning rate (default: 8e-4)
+--lr            peak learning rate (default: 5e-4)
 --warmup_epochs number of LR warmup epochs (default: 10)
 ```
 
@@ -104,11 +100,11 @@ that checkpoint on the held-out test set exactly once at the end.
 
 ## Model Evaluation
 
-Reports **AUC** and **balanced accuracy** on validation/test splits. For a
-real deployment, consider also reporting the odds ratio (top-percentile
-risk vs. the rest) and integrated discrimination improvement (IDI) over an
-existing baseline — common complementary metrics for risk-prediction
-models, not implemented in this minimal demo.
+Reports AUC and balanced accuracy on validation/test splits. For a real
+deployment, consider also reporting the odds ratio between the
+top-percentile risk group and the rest, and the integrated discrimination
+improvement (IDI) over an existing baseline — common complementary
+metrics for risk-prediction models, not implemented in this minimal demo.
 
 ## Citation
 
